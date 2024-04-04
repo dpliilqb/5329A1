@@ -18,4 +18,3 @@ if __name__ == "__main__":
     print("test data shape: ", test_data.shape)
     print("test_data:\n",train_data.head(3))
     print("test_label:\n",train_label.head(3))
-
