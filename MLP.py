@@ -14,6 +14,8 @@ class Activation(object):
     def __logistic_deriv(self, a):
         # a = logistic(x)
         return a * (1 - a)
+    def ReLU(self, x):
+        return np.maximum(0, x)
 
     def __init__(self, activation='tanh'):
         if activation == 'logistic':
@@ -183,7 +185,3 @@ class MLP:
         for i in np.arange(x.shape[0]):
             output[i] = self.forward(x[i, :])
         return output
-
-
-def hi():
-    print("suc")
