@@ -1,52 +1,26 @@
 import numpy as np
 
-class Activation(object):
-    def __tanh(self, x):
-        return np.tanh(x)
 
-    def __tanh_deriv(self, a):
-        # a = np.tanh(x)
-        return 1.0 - a ** 2
+class Layer:
+    def __init__(self):
+        pass
+    def forward(self, input):
+        raise NotImplementedError
 
-    def __logistic(self, x):
-        return 1.0 / (1.0 + np.exp(-x))
+    def backward(self, input, grad_output):
+        raise NotImplementedError
+class ReLULayer(Layer):
+    def forward(self, input):
+        return np.maximum(0, input)
 
-    def __logistic_deriv(self, a):
-        # a = logistic(x)
-        return a * (1 - a)
-    def ReLU(self, x):
-        return np.maximum(0, x)
-
-    def __init__(self, activation='tanh'):
-        if activation == 'logistic':
-            self.f = self.__logistic
-            self.f_deriv = self.__logistic_deriv
-        elif activation == 'tanh':
-            self.f = self.__tanh
-            self.f_deriv = self.__tanh_deriv
+    def backward(self, input, grad_output):
+        relu_grad = input > 0
+        return grad_output * relu_grad
 
 class HiddenLayer(object):
     def __init__(self, n_in, n_out,
                  activation_last_layer='tanh', activation='tanh', W=None, b=None):
-        """
-        Typical hidden layer of a MLP: units are fully-connected and have
-        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
-        and the bias vector b is of shape (n_out,).
 
-        NOTE : The nonlinearity used here is tanh
-
-        Hidden unit activation is given by: tanh(dot(input,W) + b)
-
-        :type n_in: int
-        :param n_in: dimensionality of input
-
-        :type n_out: int
-        :param n_out: number of hidden units
-
-        :type activation: string
-        :param activation: Non linearity to be applied in the hidden
-                           layer
-        """
         self.input = None
         self.activation = Activation(activation).f
 
