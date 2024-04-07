@@ -1,9 +1,8 @@
 import pandas as pd
 import numpy as np
-import MLP as md
-def test():
-    print("yes")
-
+from Trainer import Trainer
+from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer, GELULayer
+from MLP import MLP
 
 if __name__ == "__main__":
     test_data_array = np.load('Dataset/test_data.npy')
@@ -18,3 +17,5 @@ if __name__ == "__main__":
     # print("test data shape: ", test_data.shape)
     # print("test_data:\n",train_data.head(3))
     # print("test_label:\n",train_label.head(3))
+    model = MLP
+    model.add()

@@ -1,12 +1,15 @@
 import numpy as np
-from Modules import Activation, HiddenLayer, Layer, ReLULayer, DropoutLayer
+from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer, GELULayer
 
 class MLP:
     # for initiallization, the code will create all layers automatically based on the provided parameters.
-    def __init__(self, layers, activation=[None, 'tanh', 'tanh']):
+    def __init__(self, layers, activation):
         # initialize layers
         self.layers = []
         self.params = []
+        self.activation = activation
+    def add(self, layer):
+        self.layers.append(layer)
 
     # Forward process. Pass parameters within layers and save output.
     def forward(self, input, training=True):
@@ -19,19 +22,6 @@ class MLP:
             input = output
 
         return output
-
-    # define the objection/loss function, we use mean sqaure error (MSE) as the loss
-    # you can try other loss, such as cross entropy.
-    # when you try to change the loss, you should also consider the backward formula for the new loss as well!
-    def criterion_MSE(self, y, y_hat):
-        activation_deriv = Activation(self.activation[-1]).f_deriv
-        # MSE
-        error = y - y_hat
-        loss = error ** 2
-        # calculate the MSE's delta of the output layer
-        delta = -error * activation_deriv(y_hat)
-        # return loss and delta
-        return loss, delta
 
     # backward progress
     def backward(self, delta):

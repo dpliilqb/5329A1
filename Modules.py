@@ -1,6 +1,15 @@
 import numpy as np
 
 class Activation(object):
+    def __init__(self, activation='tanh'):
+        self.f = self.__tanh
+        self.f_deriv = self.__tanh_deriv
+        if activation == 'logistic':
+            self.f = self.__logistic
+            self.f_deriv = self.__logistic_deriv
+        elif activation == 'relu':
+            self.f = self.__relu
+            self.f_deriv = self.__relu_deriv
     def __tanh(self, x):
         return np.tanh(x)
 
@@ -15,13 +24,12 @@ class Activation(object):
         # a = logistic(x)
         return a * (1 - a)
 
-    def __init__(self, activation='tanh'):
-        if activation == 'logistic':
-            self.f = self.__logistic
-            self.f_deriv = self.__logistic_deriv
-        elif activation == 'tanh':
-            self.f = self.__tanh
-            self.f_deriv = self.__tanh_deriv
+    def __relu(self, x):
+        return np.maximum(0, x)
+
+    def __relu_deriv(self, a):
+        return np.where(a > 0, 1, 0)
+
 
 class Layer:
     def __init__(self):
@@ -31,17 +39,20 @@ class Layer:
 
     def backward(self, input, grad_output):
         raise NotImplementedError
-class ReLULayer(Layer):
-    def forward(self, input):
-        return np.maximum(0, input)
 
-    def backward(self, input, grad_output):
-        relu_grad = input > 0
-        return grad_output * relu_grad
+class SoftmaxLayer(Layer):
+    def forward(self, input):
+        exps = np.exp(input - np.max(input, axis=1, keepdims=True))
+        self.output = exps / np.sum(exps, axis=1, keepdims=True)
+        return self.output
+
+    def backward(self, output_gradient):
+        N = output_gradient.shape[0]
+        dZ = self.output * (output_gradient - np.sum(output_gradient * self.output, axis=1, keepdims=True))
+        return dZ
 
 class DropoutLayer(Layer):
     def __init__(self, dropout_rate=0.5):
-        super().__init__()
         self.dropout_rate = dropout_rate
         self.mask = None
 
@@ -55,12 +66,68 @@ class DropoutLayer(Layer):
     def backward(self, output_gradient):
         return output_gradient * self.mask
 
+class BatchNormalizationLayer(Layer):
+    def __init__(self, num_features, epsilon=1e-5):
+        self.gamma = np.ones(num_features)
+        self.beta = np.zeros(num_features)
+        self.epsilon = epsilon
+        self.num_features = num_features
+        self.running_mean = np.zeros(num_features)
+        self.running_var = np.zeros(num_features)
+        self.momentum = 0.9
 
-class HiddenLayer(object):
+    def forward(self, input, training=True):
+        if training:
+            batch_mean = np.mean(input, axis=0)
+            batch_var = np.var(input, axis=0)
+            self.running_mean = self.momentum * self.running_mean + (1 - self.momentum) * batch_mean
+            self.running_var = self.momentum * self.running_var + (1 - self.momentum) * batch_var
+            self.x_normalized = (input - batch_mean) / np.sqrt(batch_var + self.epsilon)
+            output = self.gamma * self.x_normalized + self.beta
+            self.input = input
+            return output
+        else:
+            input_normalized = (input - self.running_mean) / np.sqrt(self.running_var + self.epsilon)
+            return self.gamma * input_normalized + self.beta
+
+    def backward(self, output_gradient):
+        N = self.input.shape[0]
+
+        # Gradient of gamma and beta
+        self.grad_gamma = np.sum(output_gradient * self.x_normalized, axis=0)
+        self.grad_beta = np.sum(output_gradient, axis=0)
+
+        # Compute gradients of input
+        x_mu = self.input - np.mean(self.input, axis=0)
+        std_inv = 1. / np.sqrt(np.var(self.input, axis=0) + self.epsilon)
+
+        dx_normalized = output_gradient * self.gamma
+        dvar = np.sum(dx_normalized * x_mu, axis=0) * -.5 * std_inv ** 3
+        dmu = np.sum(dx_normalized * -std_inv, axis=0) + dvar * np.mean(-2. * x_mu, axis=0)
+
+        grad_input = dx_normalized * std_inv + dvar * 2 * x_mu / N + dmu / N
+        return grad_input
+
+class GELULayer(Layer):
+    def forward(self, input):
+        self.input = input
+        return 0.5 * input * (1 + np.tanh(np.sqrt(2 / np.pi) * (input + 0.044715 * np.power(input, 3))))
+
+    def backward(self, output_gradient):
+        x = self.input
+        tanh_out = np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.power(x, 3)))
+        sec_h_square = 1 / np.cosh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.power(x, 3))) ** 2
+        first_term = 0.5 * (1 + tanh_out)
+        second_term = 0.5 * x * (1 + 0.044715 * 3 * np.power(x, 2)) * np.sqrt(2 / np.pi) * sec_h_square
+        grad_input = output_gradient * (first_term + second_term)
+        return grad_input
+
+class HiddenLayer(Layer):
     def __init__(self, n_in, n_out,
                  activation_last_layer='tanh', activation='tanh', W=None, b=None):
 
         self.input = None
+        self.output = None
         self.activation = Activation(activation).f
 
         # activation deriv of last layer
