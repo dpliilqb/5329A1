@@ -22,24 +22,11 @@ def cross_entropy_loss(y_pred, y_true):
     loss = -np.mean(np.sum(y_true * np.log(y_pred), axis=1))
     return loss
 
-def cross_entropy_gradient(y_pred, y_true):
-    """
-    计算交叉熵损失相对于y_pred的梯度
-    :param y_pred: 模型输出的预测概率矩阵，形状为(batch_size, num_classes)
-    :param y_true: 真实标签的独热编码矩阵，形状与y_pred相同
-    :return: 交叉熵损失的梯度
-    """
-    # 防止对0取对数
-    epsilon = 1e-12
-    y_pred = np.clip(y_pred, epsilon, 1. - epsilon)
-    # 计算梯度
-    grad = -y_true / y_pred
-    return grad / y_pred.shape[0]  # 返回平均梯度
-
 class Trainer:
-    def __init__(self, model, optimizer):
+    def __init__(self, model, optimizer = None, lr = None):
         self.model = model
         self.optimizer = optimizer
+        self.lr = lr
 
     def calculate_accuracy(self, output, labels):
         # 假设output是模型的预测概率或得分，labels是真实的标签
@@ -66,23 +53,24 @@ class Trainer:
                 # 计算交叉熵损失和梯度
                 loss = cross_entropy_loss(output, y_batch)
                 total_loss += loss
-                output_gradient = cross_entropy_gradient(output, y_batch)
-
                 # 反向传播
-                self.model.backward(output_gradient)
+                self.model.backward(loss)
 
-                # 使用优化器更新模型参数
-                self.optimizer.update()
-
+                if self.optimizer is not None:
+                    # 使用优化器更新模型参数
+                    self.optimizer.update()
+                else:
+                    self.model.update(self.lr)
                 batch_accuracy = self.calculate_accuracy(output, y_batch)
                 correct_preds += batch_accuracy * X_batch.shape[0]
                 total_samples += X_batch.shape[0]
 
-                plotter.update(epoch, loss, batch_accuracy, weights, gradients)
+                plotter.update(epoch, loss, batch_accuracy)
 
             avg_loss = total_loss / (train_data.shape[0] // batch_size)
             avg_accuracy = correct_preds / total_samples
             print(f"Epoch {epoch + 1}, Average Loss: {avg_loss}, Training Accuracy: {avg_accuracy}")
+        plotter.plot()
 
     def evaluate(self, test_data, test_labels):
         # 切换到评估模式

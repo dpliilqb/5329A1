@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import erf
 
 class Activation(object):
     def __init__(self, activation='tanh'):
@@ -10,6 +11,9 @@ class Activation(object):
         elif activation == 'relu':
             self.f = self.__relu
             self.f_deriv = self.__relu_deriv
+        elif activation == 'gelu':
+            self.f = self.__gelu
+            self.f_deriv = self.__gelu_deriv
     def __tanh(self, x):
         return np.tanh(x)
 
@@ -30,10 +34,19 @@ class Activation(object):
     def __relu_deriv(self, a):
         return np.where(a > 0, 1, 0)
 
+    def __gelu(self, x):
+        return 0.5 * x * (1 + erf(x / np.sqrt(2)))
+
+    def __gelu_deriv(self, x):
+        return 0.5 * (1 + erf(x / np.sqrt(2))) + (x * np.exp(-0.5 * x ** 2)) / (np.sqrt(2 * np.pi))
 
 class Layer:
     def __init__(self):
-        pass
+        self.W = None
+        self.b = None
+        self.grad_W = None
+        self.grad_b = None
+
     def forward(self, input):
         raise NotImplementedError
 
@@ -41,13 +54,28 @@ class Layer:
         raise NotImplementedError
 
 class SoftmaxLayer(Layer):
+    def __init__(self):
+        super().__init__()
+        self.output = None
+
     def forward(self, input):
+        """
+        前向传播计算softmax函数。
+        :param input: 输入数据，维度为(N, C)，其中N为批量大小，C为类别数。
+        :return: softmax函数的输出。
+        """
+        # 通过减去最大值增加数值稳定性
         exps = np.exp(input - np.max(input, axis=1, keepdims=True))
         self.output = exps / np.sum(exps, axis=1, keepdims=True)
         return self.output
 
     def backward(self, output_gradient):
-        N = output_gradient.shape[0]
+        """
+        反向传播计算softmax层的梯度。
+        :param output_gradient: 损失函数关于softmax输出的梯度。
+        :return: 损失函数关于softmax层输入的梯度。
+        """
+        # 计算softmax层输出对输入的梯度
         dZ = self.output * (output_gradient - np.sum(output_gradient * self.output, axis=1, keepdims=True))
         return dZ
 
@@ -124,16 +152,14 @@ class GELULayer(Layer):
 
 class HiddenLayer(Layer):
     def __init__(self, n_in, n_out,
-                 activation_last_layer='tanh', activation='tanh', W=None, b=None):
+                 activation='tanh'):
 
         self.input = None
         self.output = None
         self.activation = Activation(activation).f
 
-        # activation deriv of last layer
-        self.activation_deriv = None
-        if activation_last_layer:
-            self.activation_deriv = Activation(activation_last_layer).f_deriv
+        # activation deriv
+        self.activation_deriv = Activation(activation).f_deriv
 
         # we randomly assign small values for the weights as the initiallization
         self.W = np.random.uniform(
@@ -172,3 +198,68 @@ class HiddenLayer(Layer):
         if self.activation_deriv:
             delta = delta.dot(self.W.T) * self.activation_deriv(self.input)
         return delta
+
+    def get_wnb(self):
+        return {"W": self.W, "b": self.b}
+
+    def set_wnb(self, param):
+        self.W = param.get("W", "W is now found")
+        self.b = param.get("b", "b is now found")
+
+
+class SelfAttentionLayer(Layer):
+    def __init__(self, size, heads=1):
+        self.size = size
+        self.heads = heads
+        self.query_weights = np.random.randn(size, size) * 0.1
+        self.key_weights = np.random.randn(size, size) * 0.1
+        self.value_weights = np.random.randn(size, size) * 0.1
+        self.output_grad_Q = None
+        self.output_grad_K = None
+        self.output_grad_V = None
+
+    def forward(self, input):
+        self.input = input
+        Q = np.dot(input, self.query_weights)
+        K = np.dot(input, self.key_weights)
+        V = np.dot(input, self.value_weights)
+
+        self.attention_scores = np.dot(Q, K.T) / np.sqrt(self.size)
+        self.attention_weights = self.softmax(self.attention_scores)
+
+        output = np.dot(self.attention_weights, V)
+        return output
+
+    def softmax(self, x):
+        exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+        return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+
+    def backward(self, output_grad):
+        # Gradient of output w.r.t attention weights
+        d_attention_weights = np.dot(output_grad, self.value_weights.T)
+
+        # Gradient of output w.r.t V
+        d_V = np.dot(self.attention_weights.T, output_grad)
+
+        # Gradient of attention weights w.r.t scores
+        d_attention_scores = d_attention_weights * self.attention_weights * (1 - self.attention_weights)
+
+        # Gradient of scores w.r.t Q and K
+        d_Q = np.dot(d_attention_scores, self.key_weights.T) / np.sqrt(self.size)
+        d_K = np.dot(d_attention_scores.T, self.query_weights.T) / np.sqrt(self.size)
+
+        # Gradient of Q, K, V w.r.t input
+        input_grad = np.dot(d_Q, self.query_weights.T) + np.dot(d_K, self.key_weights.T) + np.dot(d_V,
+                                                                                                  self.value_weights.T)
+
+        # Update gradients of weights
+        self.output_grad_Q = np.dot(self.input.T, d_Q)
+        self.output_grad_K = np.dot(self.input.T, d_K)
+        self.output_grad_V = np.dot(self.input.T, d_V)
+
+        return input_grad
+
+    def update(self, learning_rate):
+        self.query_weights -= learning_rate * self.output_grad_Q
+        self.key_weights -= learning_rate * self.output_grad_K
+        self.value_weights -= learning_rate * self.output_grad_V

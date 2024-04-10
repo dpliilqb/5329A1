@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from Trainer import Trainer
 from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer, GELULayer
+from Optimizer import Momentum_Optimizer, Weight_Decay_Optimizer, Adam_Optimizer
 from MLP import MLP
 
 if __name__ == "__main__":
@@ -17,5 +18,12 @@ if __name__ == "__main__":
     # print("test data shape: ", test_data.shape)
     # print("test_data:\n",train_data.head(3))
     # print("test_label:\n",train_label.head(3))
-    model = MLP
-    model.add()
+    model = MLP()
+    model.add(HiddenLayer(128, 64, activation = 'relu'))
+    model.add(HiddenLayer(64, 32, activation = 'tanh'))
+    model.add(HiddenLayer(32, 10))
+    model.add(SoftmaxLayer())
+    print(model.layers)
+    opt = Momentum_Optimizer(model.layers)
+    trainer = Trainer(model, opt)
+    trainer.train(train_data, train_label, 100, 1000)
