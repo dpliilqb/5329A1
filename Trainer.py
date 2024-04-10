@@ -1,4 +1,6 @@
 import numpy as np
+
+from Modules import SoftmaxLayer
 from Plot import TrainingVisualizer
 # Mini-batch process function
 def get_batches(X, y, batch_size):
@@ -7,6 +9,24 @@ def get_batches(X, y, batch_size):
         X_batch = X[i:i+batch_size]
         y_batch = y[i:i+batch_size]
         yield X_batch, y_batch
+
+
+def convert_to_one_hot(labels, num_classes):
+    """
+    将整数标签数组转换为one-hot编码的矩阵。
+
+    :param labels: 一个整数标签数组。
+    :param num_classes: 类别总数。
+    :return: one-hot编码的矩阵。
+    """
+    # 创建一个全为0的矩阵，形状为(labels数组长度, 类别总数)
+    one_hot_matrix = np.zeros((len(labels), num_classes))
+
+    # np.arange(len(labels))生成一个索引数组，与labels对应
+    # labels数组中的每个元素表示应该在对应行的哪一列放置1
+    one_hot_matrix[np.arange(len(labels)), labels] = 1
+
+    return one_hot_matrix
 
 def cross_entropy_loss(y_pred, y_true):
     """
@@ -51,17 +71,21 @@ class Trainer:
                 output = self.model.forward(X_batch)
 
                 # 计算交叉熵损失和梯度
-                loss = cross_entropy_loss(output, y_batch)
+                y_true = convert_to_one_hot(y_batch, 10)
+                loss = cross_entropy_loss(output, y_true)
                 total_loss += loss
                 # 反向传播
-                self.model.backward(loss)
+                if self.model.layers[-1] == SoftmaxLayer:
+                    self.model.backward(loss, output, y_true)
+                else:
+                    self.model.backward(loss)
 
                 if self.optimizer is not None:
                     # 使用优化器更新模型参数
                     self.optimizer.update()
                 else:
                     self.model.update(self.lr)
-                batch_accuracy = self.calculate_accuracy(output, y_batch)
+                batch_accuracy = self.calculate_accuracy(output, y_true)
                 correct_preds += batch_accuracy * X_batch.shape[0]
                 total_samples += X_batch.shape[0]
 

@@ -50,7 +50,7 @@ class Layer:
     def forward(self, input):
         raise NotImplementedError
 
-    def backward(self, input, grad_output):
+    def backward(self, input):
         raise NotImplementedError
 
 class SoftmaxLayer(Layer):
@@ -77,6 +77,7 @@ class SoftmaxLayer(Layer):
         """
         # 计算softmax层输出对输入的梯度
         dZ = self.output * (output_gradient - np.sum(output_gradient * self.output, axis=1, keepdims=True))
+
         return dZ
 
 class DropoutLayer(Layer):

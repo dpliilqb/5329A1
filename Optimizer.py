@@ -20,7 +20,9 @@ class Momentum_Optimizer:
         for i, layer in enumerate(self.w_layers):
             self.velocities_W[i] = self.momentum * self.velocities_W[i] + self.lr * layer.grad_W
             layer.W -= self.velocities_W[i]
-            self.velocities_b[i] = self.momentum * self.velocities_b[i] + self.lr * layer.grad_b
+
+            grad_b_sum = np.sum(layer.grad_b, axis=0)
+            self.velocities_b[i] = self.momentum * self.velocities_b[i] + self.lr * grad_b_sum
             layer.b -= self.velocities_b[i]
 
 class Weight_Decay_Optimizer:
