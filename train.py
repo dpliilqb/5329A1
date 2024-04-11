@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from Trainer import Trainer
-from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer, GELULayer
+from Modules import HiddenLayer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer, SelfAttentionLayer
 from Optimizer import Momentum_Optimizer, Weight_Decay_Optimizer, Adam_Optimizer
 from MLP import MLP
 
@@ -24,11 +24,19 @@ if __name__ == "__main__":
     # print("test_data:\n",train_data.head(3))
     # print("test_label:\n",train_label.head(3))
     model = MLP()
+    model.add(BatchNormalizationLayer(128))
     model.add(HiddenLayer(128, 64, activation = 'tanh'))
-    model.add(HiddenLayer(64, 32, activation = 'tanh'))
-    model.add(HiddenLayer(32, 10))
+    model.add(DropoutLayer(0.1))
+    model.add(HiddenLayer(64, 32, activation = 'relu'))
+    # model.add(DropoutLayer(0.01))
+    model.add(HiddenLayer(32, 16, activation = 'tanh'))
+    model.add(HiddenLayer(16, 10))
     model.add(SoftmaxLayer())
     print(model.layers)
-    opt = Momentum_Optimizer(model.layers, 1)
-    trainer = Trainer(model, lr=1)
-    trainer.train(train_data_array, train_label_array, 100, 1000)
+    # opt = Momentum_Optimizer(model.layers, 0.0001, momentum=0.01)
+    # opt = Adam_Optimizer(model.layers, 0.00001, 0.9, 0.99)
+    # opt = Weight_Decay_Optimizer(model.layers, 0.0001, 0.001)
+    # trainer = Trainer(model, opt)
+    trainer = Trainer(model, lr = 0.0001)
+    trainer.train(train_data_array, train_label_array, 40, 100)
+    trainer.evaluate(test_data_array, test_label_array)

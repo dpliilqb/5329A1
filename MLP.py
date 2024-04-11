@@ -38,9 +38,11 @@ class MLP:
 
     # backward progress
     def backward(self, delta, y_pred=None, y_true=None):
-        if self.layers[-1] == SoftmaxLayer:
+        if isinstance(self.layers[-1], SoftmaxLayer):
             delta = y_pred - y_true
-        delta = self.layers[-1].backward(delta)
+            delta = self.layers[-1].backward(delta, True)
+        else:
+            delta = self.layers[-1].backward(delta)
         for layer in reversed(self.layers[:-1]):
             delta = layer.backward(delta)
 
@@ -48,10 +50,10 @@ class MLP:
     # make sure you run the backward function before the update function!
     def update(self, lr):
         for layer in self.layers:
-            if layer.W is not None:
+            if hasattr(layer, 'W') and getattr(layer, 'W', None) is not None:
                 layer.W -= lr * layer.grad_W
-                # grad_b_sum = np.sum(layer.grad_b, axis=0)
-                layer.b -= lr * layer.grad_b
+                grad_b_sum = np.sum(layer.grad_b, axis=0)
+                layer.b -= lr * grad_b_sum
 
     # define the training function
     # it will return all losses within the whole training process.

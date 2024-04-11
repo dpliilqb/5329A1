@@ -75,7 +75,7 @@ class Trainer:
                 loss = cross_entropy_loss(output, y_true)
                 total_loss += loss
                 # 反向传播
-                if self.model.layers[-1] == SoftmaxLayer:
+                if isinstance(self.model.layers[-1], SoftmaxLayer):
                     self.model.backward(loss, output, y_true)
                 else:
                     self.model.backward(loss)
@@ -99,6 +99,7 @@ class Trainer:
     def evaluate(self, test_data, test_labels):
         # 切换到评估模式
         output = self.model.forward(test_data, training=False)
+        test_labels = convert_to_one_hot(test_labels, 10)
         loss = cross_entropy_loss(output, test_labels)
         accuracy = self.calculate_accuracy(output, test_labels)
         print(f"Test Loss: {loss}, Test Accuracy: {accuracy}")

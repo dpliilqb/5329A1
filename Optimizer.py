@@ -8,7 +8,7 @@ class Momentum_Optimizer:
         self.layers = layers
         self.lr = lr
         self.momentum = momentum
-        self.w_layers = [layer for layer in self.layers if layer.W is not None]
+        self.w_layers = [layer for layer in self.layers if hasattr(layer, 'W') and getattr(layer, 'W', None) is not None]
         self.velocities_W = [np.zeros_like(l.W) for l in self.w_layers]
         self.velocities_b = [np.zeros_like(l.b) for l in self.w_layers]
 
@@ -21,14 +21,14 @@ class Momentum_Optimizer:
             self.velocities_W[i] = self.momentum * self.velocities_W[i] + self.lr * layer.grad_W
             layer.W -= self.velocities_W[i]
 
-            grad_b_sum = np.sum(layer.grad_b, axis=0)
-            self.velocities_b[i] = self.momentum * self.velocities_b[i] + self.lr * grad_b_sum
+            # grad_b_sum = np.sum(layer.grad_b, axis=0)
+            self.velocities_b[i] = self.momentum * self.velocities_b[i] + self.lr * layer.grad_b
             layer.b -= self.velocities_b[i]
 
 class Weight_Decay_Optimizer:
     def __init__(self, layers, lr=0.01, alpha=0.01):
         self.layers = layers
-        self.w_layers = [layer for layer in self.layers if layer.W is not None]
+        self.w_layers = [layer for layer in self.layers if hasattr(layer, 'W') and getattr(layer, 'W', None) is not None]
         self.lr = lr
         self.alpha = alpha
 
@@ -41,13 +41,14 @@ class Weight_Decay_Optimizer:
 
             # 更新参数
             layer.W -= self.lr * layer.grad_W
+            # grad_b_sum = np.sum(layer.grad_b, axis=0)
             layer.b -= self.lr * layer.grad_b
 
 
 class Adam_Optimizer:
     def __init__(self, layers, lr=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
         self.layers = layers
-        self.w_layers = [layer for layer in self.layers if layer.W is not None]
+        self.w_layers = [layer for layer in self.layers if hasattr(layer, 'W') and getattr(layer, 'W', None) is not None]
         self.lr = lr
         self.beta1 = beta1
         self.beta2 = beta2
@@ -83,4 +84,5 @@ class Adam_Optimizer:
             b_param_update = self.lr * m_b_corrected / (np.sqrt(v_b_corrected) + self.epsilon)
 
             layer.W -= W_param_update
-            layer.b -= b_param_update
+            # grad_b_sum = np.sum(layer.grad_b, axis=0)
+            layer.b -= layer.grad_b

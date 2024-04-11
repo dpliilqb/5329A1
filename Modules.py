@@ -2,18 +2,6 @@ import numpy as np
 from scipy.special import erf
 
 class Activation(object):
-    def __init__(self, activation='tanh'):
-        self.f = self.__tanh
-        self.f_deriv = self.__tanh_deriv
-        if activation == 'logistic':
-            self.f = self.__logistic
-            self.f_deriv = self.__logistic_deriv
-        elif activation == 'relu':
-            self.f = self.__relu
-            self.f_deriv = self.__relu_deriv
-        elif activation == 'gelu':
-            self.f = self.__gelu
-            self.f_deriv = self.__gelu_deriv
     def __tanh(self, x):
         return np.tanh(x)
 
@@ -39,6 +27,18 @@ class Activation(object):
 
     def __gelu_deriv(self, x):
         return 0.5 * (1 + erf(x / np.sqrt(2))) + (x * np.exp(-0.5 * x ** 2)) / (np.sqrt(2 * np.pi))
+    def __init__(self, activation='tanh'):
+        if activation == 'logistic':
+            self.f = self.__logistic
+            self.f_deriv = self.__logistic_deriv
+        elif activation == 'relu':
+            self.f = self.__relu
+            self.f_deriv = self.__relu_deriv
+        elif activation == 'gelu':
+            self.f = self.__gelu
+            self.f_deriv = self.__gelu_deriv
+        self.f = self.__tanh
+        self.f_deriv = self.__tanh_deriv
 
 class Layer:
     def __init__(self):
@@ -69,19 +69,23 @@ class SoftmaxLayer(Layer):
         self.output = exps / np.sum(exps, axis=1, keepdims=True)
         return self.output
 
-    def backward(self, output_gradient):
+    def backward(self, output_gradient, is_cross_entropy=False):
         """
         反向传播计算softmax层的梯度。
         :param output_gradient: 损失函数关于softmax输出的梯度。
         :return: 损失函数关于softmax层输入的梯度。
         """
+        if is_cross_entropy:
+            dZ = output_gradient
         # 计算softmax层输出对输入的梯度
-        dZ = self.output * (output_gradient - np.sum(output_gradient * self.output, axis=1, keepdims=True))
+        else:
+            dZ = self.output * (output_gradient - np.sum(output_gradient * self.output, axis=1, keepdims=True))
 
         return dZ
 
 class DropoutLayer(Layer):
     def __init__(self, dropout_rate=0.5):
+        super().__init__()
         self.dropout_rate = dropout_rate
         self.mask = None
 
@@ -97,6 +101,7 @@ class DropoutLayer(Layer):
 
 class BatchNormalizationLayer(Layer):
     def __init__(self, num_features, epsilon=1e-5):
+        super().__init__()
         self.gamma = np.ones(num_features)
         self.beta = np.zeros(num_features)
         self.epsilon = epsilon
@@ -152,9 +157,9 @@ class GELULayer(Layer):
         return grad_input
 
 class HiddenLayer(Layer):
-    def __init__(self, n_in, n_out,
-                 activation='tanh'):
+    def __init__(self, n_in, n_out, activation=''):
 
+        super().__init__()
         self.input = None
         self.output = None
         self.activation = Activation(activation).f
@@ -195,7 +200,7 @@ class HiddenLayer(Layer):
 
     def backward(self, delta, output_layer=False):
         self.grad_W = np.atleast_2d(self.input).T.dot(np.atleast_2d(delta))
-        self.grad_b = delta
+        self.grad_b = np.sum(delta, axis=0)
         if self.activation_deriv:
             delta = delta.dot(self.W.T) * self.activation_deriv(self.input)
         return delta
