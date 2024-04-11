@@ -142,20 +142,6 @@ class BatchNormalizationLayer(Layer):
         grad_input = dx_normalized * std_inv + dvar * 2 * x_mu / N + dmu / N
         return grad_input
 
-class GELULayer(Layer):
-    def forward(self, input):
-        self.input = input
-        return 0.5 * input * (1 + np.tanh(np.sqrt(2 / np.pi) * (input + 0.044715 * np.power(input, 3))))
-
-    def backward(self, output_gradient):
-        x = self.input
-        tanh_out = np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.power(x, 3)))
-        sec_h_square = 1 / np.cosh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.power(x, 3))) ** 2
-        first_term = 0.5 * (1 + tanh_out)
-        second_term = 0.5 * x * (1 + 0.044715 * 3 * np.power(x, 2)) * np.sqrt(2 / np.pi) * sec_h_square
-        grad_input = output_gradient * (first_term + second_term)
-        return grad_input
-
 class HiddenLayer(Layer):
     def __init__(self, n_in, n_out, activation=''):
 

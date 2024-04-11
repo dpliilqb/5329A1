@@ -2,7 +2,7 @@ import os
 import pickle
 
 import numpy as np
-from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer, GELULayer
+from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer
 
 class MLP:
     # for initiallization, the code will create all layers automatically based on the provided parameters.
