@@ -1,9 +1,6 @@
 import numpy as np
 from scipy.special import erf
 
-import numpy as np
-from scipy.special import erf
-
 
 class Activation(object):
     """
@@ -76,7 +73,7 @@ class Activation(object):
         elif activation == 'gelu':
             self.f = self.__gelu
             self.f_deriv = self.__gelu_deriv
-        else:
+        elif activation == 'tanh':
             self.f = self.__tanh
             self.f_deriv = self.__tanh_deriv
 
@@ -107,9 +104,6 @@ class Layer:
 
     def backward(self, input):
         raise NotImplementedError("Must be implemented in subclass.")
-
-
-import numpy as np
 
 class SoftmaxLayer(Layer):
     """
@@ -221,9 +215,6 @@ class DropoutLayer(Layer):
         # Only pass gradient where the neuron was not dropped out
         return output_gradient * self.mask
 
-
-import numpy as np
-
 class BatchNormalizationLayer(Layer):
     """
     A batch normalization layer normalizes the input layer by adjusting and scaling the activations.
@@ -311,10 +302,6 @@ class BatchNormalizationLayer(Layer):
         grad_input = dx_normalized * std_inv + dvar * 2 * x_mu / N + dmu / N
         return grad_input
 
-
-import numpy as np
-from Activation import Activation  # Ensure that you have an Activation class available
-
 class HiddenLayer(Layer):
     """
     Represents a hidden layer in a neural network, which is a fully connected layer applying an activation function.
@@ -341,8 +328,8 @@ class HiddenLayer(Layer):
         super().__init__()
         self.input = None
         self.output = None
-        self.activation = Activation(activation).f
-        self.activation_deriv = Activation(activation).f_deriv
+        self.activation = Activation(activation).f if activation is not None else None
+        self.activation_deriv = Activation(activation).f_deriv if activation is not None else None
 
         # Initialize weights using a uniform distribution with a scale factor derived from the layer's size
         self.W = np.random.uniform(
@@ -378,13 +365,12 @@ class HiddenLayer(Layer):
         self.input = input
         return self.output
 
-    def backward(self, delta, output_layer=False):
+    def backward(self, delta):
         """
         Perform backpropagation for this layer.
 
         Args:
             delta (numpy.ndarray): The gradient of the loss function with respect to the output of this layer.
-            output_layer (bool): If True, handle as output layer; otherwise, handle as hidden layer.
 
         Returns:
             numpy.ndarray: Gradient of the loss function with respect to the input of this layer.

@@ -2,7 +2,7 @@ import os
 import pickle
 
 import numpy as np
-from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer
+from Modules import Layer, SoftmaxLayer, DropoutLayer
 
 class MLP:
     """
@@ -10,14 +10,12 @@ class MLP:
 
     Attributes:
         layers (list): A list to store the layers of the neural network.
-        params (list): A list to store parameters of the network, not used explicitly in the provided methods.
     """
     def __init__(self):
         """
         Initializes an empty MLP model with no layers.
         """
         self.layers = []
-        self.params = []
 
     def add(self, layer):
         """
@@ -41,6 +39,7 @@ class MLP:
         """
         for layer in self.layers:
             if isinstance(layer, DropoutLayer):
+                # For Dropout, there's a training sign to tell it the current process is forward.
                 output = layer.forward(input, training=training)
             else:
                 output = layer.forward(input)
@@ -57,6 +56,7 @@ class MLP:
             y_true (array-like): True labels (used if the last layer is Softmax).
         """
         if isinstance(self.layers[-1], SoftmaxLayer):
+            # The gradient of cross entropy and softmax is (y_pred - y_true)
             delta = y_pred - y_true
             delta = self.layers[-1].backward(delta, True)
         else:
@@ -72,7 +72,7 @@ class MLP:
             lr (float): The learning rate.
         """
         for layer in self.layers:
-            if hasattr(layer, 'W'):
+            if hasattr(layer, 'W') and getattr(layer, 'W') is not None:
                 layer.W -= lr * layer.grad_W
                 layer.b -= lr * layer.grad_b
 
@@ -99,12 +99,19 @@ class MLP:
             path (str): The directory path to save the model.
             filename (str): The filename to save the model.
         """
-        parameters = [layer.get_wnb() for layer in self.layers if hasattr(layer, 'get_wnb')]
+        # model_dict: store layers and params.
+        model_dict = {"layers": self.layers, "params": []}
+
+        for layer in self.layers:
+            if hasattr(layer, 'get_wnb'):
+                model_dict["params"].append(layer.get_wnb)
+            else:
+                model_dict["params"].append({})
         joint_path = os.path.join(path, filename)
         with open(joint_path, 'wb') as file:
-            pickle.dump(parameters, file)
+            pickle.dump(model_dict, file)
 
-    def load_model(self, path="Saved Model", filename="model.h5"):
+    def load_model(self, path="Saved Models", filename="model.h5"):
         """
         Load the model parameters from a file.
 
@@ -114,7 +121,8 @@ class MLP:
         """
         joint_path = os.path.join(path, filename)
         with open(joint_path, 'rb') as file:
-            parameters = pickle.load(file)
-        for layer, param in zip(self.layers, parameters):
+            model_dict = pickle.load(file)
+            self.layers = model_dict["layers"]
+        for layer, param in zip(model_dict["layers"], model_dict["params"]):
             if hasattr(layer, 'set_wnb'):
                 layer.set_wnb(param)

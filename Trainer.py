@@ -2,7 +2,9 @@ import numpy as np
 import copy as cp
 from Modules import SoftmaxLayer
 from Plot import TrainingVisualizer
-# Mini-batch process function
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+import time
+
 def get_batches(X, y, batch_size):
     """
     Generator function to yield batches of data and labels from the full dataset.
@@ -146,11 +148,12 @@ class Trainer:
             batch_size (int): The size of batches to use during training.
         """
         plotter = TrainingVisualizer()  # Placeholder for visualization tool
+        start_time = time.time()
         for epoch in range(epochs):
             total_loss = 0
             correct_preds = 0
             total_samples = 0
-
+            # Mini batch train
             for X_batch, y_batch in get_batches(train_data, train_labels, batch_size):
                 output = self.model.forward(X_batch)
                 y_true = convert_to_one_hot(y_batch, 10)
@@ -164,7 +167,7 @@ class Trainer:
                     self.model.backward(loss)
 
                 # Parameter update
-                if self.optimizer:
+                if self.optimizer is not None:
                     self.optimizer.update()
                 else:
                     self.model.update(self.lr)
@@ -179,12 +182,13 @@ class Trainer:
             if avg_accuracy > self.highest_accuracy:
                 self.highest_accuracy = avg_accuracy
                 self.best_epoch = cp.deepcopy(self.model)
+            print(f"Epoch {epoch + 1}, Average Loss: {avg_loss:.4f}, Training Accuracy: {avg_accuracy:.4f}")
 
-            print(f"Epoch {epoch + 1}, Average Loss: {avg_loss}, Training Accuracy: {avg_accuracy}")
-        print(f"Best Accuracy: {self.highest_accuracy}")
+        end_time = time.time()
+        print(f"Training took {end_time - start_time: .2f} s")
         plotter.plot()
 
-    def evaluate(self, test_data, test_labels, load=False):
+    def evaluate(self, test_data, test_labels, training=True, load=False):
         """
         Evaluate the model on test data.
 
@@ -192,18 +196,32 @@ class Trainer:
             test_data (numpy.ndarray): Test dataset.
             test_labels (numpy.ndarray): Labels for the test data.
             load (bool): If True, use the full model for predictions, else use the model at the best epoch.
-
+            training(bool: If True, print contents with training words, else, print contents with test words.
         Returns:
             None: Outputs the loss and accuracy directly.
         """
         if load:
-            output = self.model.predict(test_data)
+            output = self.model.forward(test_data)
         else:
             output = self.best_epoch.forward(test_data, training=False)
 
         test_labels = convert_to_one_hot(test_labels, 10)
         loss = cross_entropy_loss(output, test_labels)
+
+
         accuracy = self.calculate_accuracy(output, test_labels)
-        print(f"Test Loss: {loss}, Test Accuracy: {accuracy}")
+        # Convert probabilities to int where p > 0.5
+        output = (output > 0.5).astype(int)
+        # accuracy = accuracy_score(output, test_labels)
+        f1_sc = f1_score(test_labels, output, average='macro')
+        precision = precision_score(test_labels, output, average='macro')
+        recall = recall_score(test_labels, output, average='macro')
+        mae = np.mean(np.abs(test_labels - output))
+        mse = np.mean((test_labels - output) ** 2)
+        rmse = np.sqrt(mse)
+        if training == True:
+            print(f"Train loss: {loss:.4f}, Train Accuracy: {accuracy:.4f}, F1 score: {f1_sc:.4f}, precision: {precision:.4f}, recall: {recall:.4f}, MAE: {mae:.4f}, RMSE: {rmse:.4f}")
+        else:
+            print(f"Test Loss: {loss:.4f}, Test Accuracy: {accuracy:.4f}, F1 score: {f1_sc:.4f}, precision: {precision:.4f}, recall: {recall:.4f}, MAE: {mae:.4f}, RMSE: {rmse:.4f}")
 
 
