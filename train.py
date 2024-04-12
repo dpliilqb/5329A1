@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 from Trainer import Trainer
 from Modules import HiddenLayer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer
@@ -67,18 +66,9 @@ if __name__ == "__main__":
     train_label_array = np.squeeze(train_label_array)
     test_label_array = np.squeeze(test_label_array)
 
-    param_grid = {
-        'learning_rate': [0.00007, 0.00008, 0.0001, 0.00012, 0.00014],
-        'batch_size': [100, 128, 256],
-        'dropout_rate': [0.01, 0.1, 0.2]
-    }
-
-    # grid_search(param_grid, train_data_array, train_label_array, test_data_array, test_label_array)
-
     model = MLP()
     model.add(BatchNormalizationLayer(128))
     model.add(HiddenLayer(128, 64, activation='relu'))
-    model.add(DropoutLayer(0.1))
     model.add(HiddenLayer(64, 32, activation='relu'))
     model.add(HiddenLayer(32, 16, activation='relu'))
     model.add(HiddenLayer(16, 10, activation='relu'))
@@ -89,4 +79,32 @@ if __name__ == "__main__":
     trainer.evaluate(train_data_array, train_label_array)
     trainer.evaluate(test_data_array, test_label_array, False)
 
-    trainer.model.save_model(path="Saved Models", filename="model_7.h5")
+    trainer.model.save_model(path="Saved Models", filename="Best_Model.h5")
+
+    # param_grid = {
+    #     'learning_rate': [0.00007, 0.00008, 0.0001, 0.00012, 0.00014],
+    #     'batch_size': [100, 128, 256],
+    #     'dropout_rate': [0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25]
+    # }
+    # grid_search(param_grid, train_data_array, train_label_array, test_data_array, test_label_array)
+    # for dropout_rate in param_grid['dropout_rate']:
+    #     model = MLP()
+    #     model.add(BatchNormalizationLayer(128))
+    #     model.add(HiddenLayer(128, 64, activation='relu'))
+    #     model.add(DropoutLayer(dropout_rate))
+    #     model.add(HiddenLayer(64, 32, activation='relu'))
+    #     model.add(HiddenLayer(32, 16, activation='relu'))
+    #     model.add(HiddenLayer(16, 10, activation='relu'))
+    #     model.add(SoftmaxLayer())
+    #     opt = Momentum_Optimizer(model.layers, 8e-5, momentum=0.9)
+    #     trainer = Trainer(model, opt)
+    #     trainer.train(train_data_array, train_label_array, epochs=60, batch_size=256)
+    #     trainer.evaluate(train_data_array, train_label_array)
+    #     trainer.evaluate(test_data_array, test_label_array, False)
+    #     accuracies.append(trainer.highest_accuracy)
+    #
+    # plt.plot(param_grid["dropout_rate"], accuracies)
+    # plt.xlabel('Dropout Rate')
+    # plt.ylabel('Accuracy')
+    # plt.title('Accuracy with Dropout Rate')
+    # plt.show()
