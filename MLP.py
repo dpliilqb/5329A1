@@ -5,39 +5,57 @@ import numpy as np
 from Modules import Activation, HiddenLayer, Layer, SoftmaxLayer, DropoutLayer, BatchNormalizationLayer
 
 class MLP:
-    # for initiallization, the code will create all layers automatically based on the provided parameters.
+    """
+    A simple implementation of a Multilayer Perceptron (MLP) neural network.
+
+    Attributes:
+        layers (list): A list to store the layers of the neural network.
+        params (list): A list to store parameters of the network, not used explicitly in the provided methods.
+    """
     def __init__(self):
-        # initialize layers
+        """
+        Initializes an empty MLP model with no layers.
+        """
         self.layers = []
         self.params = []
 
     def add(self, layer):
+        """
+        Add a layer to the neural network.
+
+        Args:
+            layer (Layer): The layer to be added to the network.
+        """
         self.layers.append(layer)
 
-    # Forward process. Pass parameters within layers and save output.
     def forward(self, input, training=True):
+        """
+        Perform the forward propagation through the network.
+
+        Args:
+            input (array-like): The input data.
+            training (bool): Flag to indicate whether the forward pass is for training.
+
+        Returns:
+            output (array-like): The output of the last layer after forward propagation.
+        """
         for layer in self.layers:
-            # For Droupout, there's a training sign to tell it the current process is forward.
             if isinstance(layer, DropoutLayer):
                 output = layer.forward(input, training=training)
             else:
                 output = layer.forward(input)
             input = output
-
         return output
 
-    def criterion_MSE(self, y, y_hat):
-        activation_deriv = Activation(self.activation[-1]).f_deriv
-        # MSE
-        error = y - y_hat
-        loss = error ** 2
-        # calculate the MSE's delta of the output layer
-        delta = -error * activation_deriv(y_hat)
-        # return loss and delta
-        return loss, delta
-
-    # backward progress
     def backward(self, delta, y_pred=None, y_true=None):
+        """
+        Perform backward propagation through the network.
+
+        Args:
+            delta (array-like): The initial gradient delta.
+            y_pred (array-like): Predicted labels (used if the last layer is Softmax).
+            y_true (array-like): True labels (used if the last layer is Softmax).
+        """
         if isinstance(self.layers[-1], SoftmaxLayer):
             delta = y_pred - y_true
             delta = self.layers[-1].backward(delta, True)
@@ -46,37 +64,57 @@ class MLP:
         for layer in reversed(self.layers[:-1]):
             delta = layer.backward(delta)
 
-    # update the network weights after backward.
-    # make sure you run the backward function before the update function!
     def update(self, lr):
+        """
+        Update the network weights using gradients computed during backpropagation.
+
+        Args:
+            lr (float): The learning rate.
+        """
         for layer in self.layers:
-            if hasattr(layer, 'W') and getattr(layer, 'W', None) is not None:
+            if hasattr(layer, 'W'):
                 layer.W -= lr * layer.grad_W
-                grad_b_sum = np.sum(layer.grad_b, axis=0)
-                layer.b -= lr * grad_b_sum
+                layer.b -= lr * layer.grad_b
 
-    # define the training function
-    # it will return all losses within the whole training process.
-
-    # define the prediction function
-    # we can use predict function to predict the results of new data, by using the well-trained network.
     def predict(self, x):
+        """
+        Predict the output for given input using the trained network.
+
+        Args:
+            x (array-like): The input data.
+
+        Returns:
+            output (array-like): The predicted output.
+        """
         output = np.zeros(x.shape[0])
         for i in np.arange(x.shape[0]):
             output[i] = self.forward(x[i, :])
         return output
 
-    def save_model(self, path = "Saved Model", filename = "model.h5"):
-        parameters = [layer.get_wnb() for layer in self.layers if
-                      hasattr(layer, 'get_wng')]
+    def save_model(self, path="Saved Model", filename="model.h5"):
+        """
+        Save the model parameters to a file.
+
+        Args:
+            path (str): The directory path to save the model.
+            filename (str): The filename to save the model.
+        """
+        parameters = [layer.get_wnb() for layer in self.layers if hasattr(layer, 'get_wnb')]
         joint_path = os.path.join(path, filename)
         with open(joint_path, 'wb') as file:
             pickle.dump(parameters, file)
 
-    def load_model(self, path = "Saved Model", filename = "model.h5"):
+    def load_model(self, path="Saved Model", filename="model.h5"):
+        """
+        Load the model parameters from a file.
+
+        Args:
+            path (str): The directory path to load the model from.
+            filename (str): The filename to load the model from.
+        """
         joint_path = os.path.join(path, filename)
         with open(joint_path, 'rb') as file:
             parameters = pickle.load(file)
         for layer, param in zip(self.layers, parameters):
             if hasattr(layer, 'set_wnb'):
-                layer.set_weights(param)
+                layer.set_wnb(param)
